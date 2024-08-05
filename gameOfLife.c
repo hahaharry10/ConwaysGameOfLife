@@ -99,6 +99,14 @@ void createBlock( char** cellGrid, int strt_r, int strt_c ) {
     cellGrid[strt_r+1][strt_c+1] = 1;
 }
 
+void createGlider( char** cellGrid, int strt_r, int strt_c ) {
+    cellGrid[strt_r+0][strt_c+2] = 1;
+    cellGrid[strt_r+1][strt_c+2] = 1;
+    cellGrid[strt_r+2][strt_c+2] = 1;
+    cellGrid[strt_r+1][strt_c+0] = 1;
+    cellGrid[strt_r+2][strt_c+1] = 1;
+}
+
 int main( int argc, char** argv ) {
     char** cellGrid;
 
@@ -106,6 +114,7 @@ int main( int argc, char** argv ) {
     createToad(cellGrid, 5, 5);
     createBeacon(cellGrid, 10, 10);
     createBlock(cellGrid, 10, 5);
+    createGlider(cellGrid, 0, 0);
 
     while( 1 ) {
         printCellGrid(cellGrid);
