@@ -1,5 +1,5 @@
 CC = mpicc
-CFLAGS = -pedantic -g -std=c89
+CFLAGS = -pedantic -g -std=c99
 HEADERS = *.h
 MAINS = 	gameOfLifeMPI.o
 TARGETS	=	gameOfLifeMPI
