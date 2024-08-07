@@ -87,13 +87,13 @@ void createGlider( char* cellGrid, int strt_r, int strt_c ) {
 int main( int argc, char** argv ) {
     char* cellGrid;
     char* cellRow;
-    int i;
+    int i, j, domainSize;
 
     /* TODO: In order to parallelise:
-     *  1) Flatten array to a one dimension array.
-     *  2) Send each rank their cells and their required ghost cells.
-     *  3) Update row.
-     *  4) Send updated row to neighbouring ranks to update their ghost cells.
+     *  - [ ] Flatten array to a one dimension array.
+     *  - [ ] Rank 0 send all other ranks the number of rows they will receive.
+     *  - [ ] Send each rank their cells and their required ghost cells.
+     *  - [ ] Send updated row to neighbouring ranks to update their ghost cells.
      */
 
     // Initialise MPI and get the rank and no. of processes.
@@ -102,8 +102,6 @@ int main( int argc, char** argv ) {
     MPI_Comm_size( MPI_COMM_WORLD, &numProcs );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank     );
 
-    cellRow = (char *) malloc(CELL_GRID_WIDTH);
-
     if( rank == 0 ) {
         cellGrid = initCellGrid();
         createToad(cellGrid, 5, 5);
@@ -111,14 +109,31 @@ int main( int argc, char** argv ) {
         createBlock(cellGrid, 10, 5);
         createGlider(cellGrid, 0, 0);
         printCellGrid(cellGrid);
+
+        domainSize = (CELL_GRID_HEIGHT / numProcs) * CELL_GRID_WIDTH;
+    }
+    MPI_Bcast(&domainSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    cellRow = (char *) malloc(domainSize);
+
+    MPI_Scatter(cellGrid, domainSize, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    for( i = 0; i < numProcs; i++ ) {
+        if( i == rank ) {
+            printf("Rank %i: Domain Size %i\n", rank, domainSize);
+            for( j = 0; j < domainSize; j++ ) {
+                if( j % CELL_GRID_WIDTH == 0 )
+                    printf("\n");
+                printf("%i ", cellRow[j]);
+            }
+            printf("\n\n");
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
-    MPI_Scatter(cellGrid, (int) CELL_GRID_HEIGHT / numProcs, MPI_CHAR, cellRow, CELL_GRID_WIDTH / numProcs, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    printf("Rank %i Given row:\n\t%s", rank, cellRow);
     free(cellRow);
-    freeCellGrid(cellGrid);
+    if( rank == 0 )
+        freeCellGrid(cellGrid);
 	MPI_Finalize();
     return 0;
 
