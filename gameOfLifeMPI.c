@@ -84,6 +84,18 @@ void createGlider( char* cellGrid, int strt_r, int strt_c ) {
     *(cellGrid+((strt_r+2)*CELL_GRID_WIDTH)+strt_c+1) = 1;
 }
 
+void createLightweightSpaceship( char* cellGrid, int strt_r, int strt_c ) {
+    *(cellGrid+((strt_r+0)*CELL_GRID_WIDTH)+strt_c+0) = 1;
+    *(cellGrid+((strt_r+0)*CELL_GRID_WIDTH)+strt_c+1) = 1;
+    *(cellGrid+((strt_r+0)*CELL_GRID_WIDTH)+strt_c+2) = 1;
+    *(cellGrid+((strt_r+0)*CELL_GRID_WIDTH)+strt_c+3) = 1;
+    *(cellGrid+((strt_r+1)*CELL_GRID_WIDTH)+strt_c+0) = 1;
+    *(cellGrid+((strt_r+1)*CELL_GRID_WIDTH)+strt_c+4) = 1;
+    *(cellGrid+((strt_r+2)*CELL_GRID_WIDTH)+strt_c+0) = 1;
+    *(cellGrid+((strt_r+3)*CELL_GRID_WIDTH)+strt_c+1) = 1;
+    *(cellGrid+((strt_r+3)*CELL_GRID_WIDTH)+strt_c+4) = 1;
+}
+
 int main( int argc, char** argv ) {
     char* cellGrid;
     char* cellRow;
@@ -108,6 +120,7 @@ int main( int argc, char** argv ) {
         createBeacon(cellGrid, 10, 10);
         createBlock(cellGrid, 10, 5);
         createGlider(cellGrid, 0, 0);
+        createLightweightSpaceship(cellGrid, 14, 15);
         printCellGrid(cellGrid);
 
         domainSize = (CELL_GRID_HEIGHT / numProcs) * CELL_GRID_WIDTH;
