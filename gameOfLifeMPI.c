@@ -102,18 +102,18 @@ int main( int argc, char** argv ) {
     int i, j, domainSize;
 
     /* TODO: In order to parallelise:
-     *  - [ ] Flatten array to a one dimension array.
-     *  - [ ] Rank 0 send all other ranks the number of rows they will receive.
      *  - [ ] Send each rank their cells and their required ghost cells.
      *  - [ ] Send updated row to neighbouring ranks to update their ghost cells.
      */
 
-    // Initialise MPI and get the rank and no. of processes.
+    /* Initialise MPI and get the rank and no. of processes. */
     int rank, numProcs;
     MPI_Init( &argc, &argv );
     MPI_Comm_size( MPI_COMM_WORLD, &numProcs );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank     );
 
+    MPI_Request* requests;
+    int* domainSizes;
     if( rank == 0 ) {
         cellGrid = initCellGrid();
         createToad(cellGrid, 5, 5);
@@ -123,14 +123,46 @@ int main( int argc, char** argv ) {
         createLightweightSpaceship(cellGrid, 14, 15);
         printCellGrid(cellGrid);
 
-        domainSize = (CELL_GRID_HEIGHT / numProcs) * CELL_GRID_WIDTH;
+        domainSize = (CELL_GRID_HEIGHT / numProcs);
+        domainSizes = (int *) calloc(numProcs, sizeof(int));
+        for( i = 0; i < numProcs; i++ )
+            domainSizes[i] = domainSize * CELL_GRID_WIDTH; /* Set default domain size */
+        for( i = 0; i < CELL_GRID_HEIGHT-(domainSize*numProcs); i++ )
+            domainSizes[i%numProcs] += CELL_GRID_WIDTH; /* Balance excess load accross all processes */
+
+        /* Asynchonously send load size to all other ranks */
+        requests = (MPI_Request *) calloc(numProcs, sizeof(MPI_Request));
+        for( i = 1; i < numProcs; i++ )
+            MPI_Isend(domainSizes+i, 1, MPI_INT, i, 0, MPI_COMM_WORLD, requests+i-1);
+
+        domainSize = domainSizes[0];
+        MPI_Waitall(numProcs-1, requests, MPI_STATUSES_IGNORE);
+
+        /*
+         * The following variables are being reused for MPI_Scatterv:
+         *      requests -> displs
+         *      domainSizes -> counts
+         */
+        int* displs = (int *) requests;
+        for( i = 0; i < numProcs; i++ ) {
+            displs[i] = 0; 
+            for( j = 0; j < i; j++ )
+                displs[i] += domainSizes[j];
+            printf("Rank %i gets:\n\tCounts: %i\n\tDispls: %i\n", i, domainSizes[i], displs[i]);
+        }
+        cellRow = (char *) malloc(domainSize);
+
+        MPI_Scatterv(cellGrid, domainSizes, displs, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
+        free(domainSizes);
+        free(requests);
     }
-    MPI_Bcast(&domainSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    else {
+        MPI_Recv(&domainSize, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        cellRow = (char *) malloc(domainSize);
+        MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
+    }
 
-    cellRow = (char *) malloc(domainSize);
-
-    MPI_Scatter(cellGrid, domainSize, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
-
+    MPI_Barrier(MPI_COMM_WORLD);
     for( i = 0; i < numProcs; i++ ) {
         if( i == rank ) {
             printf("Rank %i: Domain Size %i\n", rank, domainSize);
@@ -143,6 +175,8 @@ int main( int argc, char** argv ) {
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
+
+    /* TODO: Binary tree reduction to rank 0: */
 
     free(cellRow);
     if( rank == 0 )
