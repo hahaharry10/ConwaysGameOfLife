@@ -112,9 +112,10 @@ int main( int argc, char** argv ) {
     MPI_Comm_size( MPI_COMM_WORLD, &numProcs );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank     );
 
-    MPI_Request* requests;
-    int* domainSizes;
     if( rank == 0 ) {
+        MPI_Request* requests;
+        int *domainSizes, *displs;
+
         cellGrid = initCellGrid();
         createToad(cellGrid, 5, 5);
         createBeacon(cellGrid, 10, 10);
@@ -125,10 +126,12 @@ int main( int argc, char** argv ) {
 
         domainSize = (CELL_GRID_HEIGHT / numProcs);
         domainSizes = (int *) calloc(numProcs, sizeof(int));
+        /* Split rows evenly accross all processes and add ghost cells: */
         for( i = 0; i < numProcs; i++ )
-            domainSizes[i] = domainSize * CELL_GRID_WIDTH; /* Set default domain size */
+            domainSizes[i] = (domainSize * CELL_GRID_WIDTH) + ( (i == 0 || i == numProcs-1) ? CELL_GRID_WIDTH : 2*CELL_GRID_WIDTH ) ;
+        /* add remainding rows to other processes: */
         for( i = 0; i < CELL_GRID_HEIGHT-(domainSize*numProcs); i++ )
-            domainSizes[i%numProcs] += CELL_GRID_WIDTH; /* Balance excess load accross all processes */
+            domainSizes[i%numProcs] += CELL_GRID_WIDTH;
 
         /* Asynchonously send load size to all other ranks */
         requests = (MPI_Request *) calloc(numProcs, sizeof(MPI_Request));
@@ -136,22 +139,20 @@ int main( int argc, char** argv ) {
             MPI_Isend(domainSizes+i, 1, MPI_INT, i, 0, MPI_COMM_WORLD, requests+i-1);
 
         domainSize = domainSizes[0];
-        MPI_Waitall(numProcs-1, requests, MPI_STATUSES_IGNORE);
 
-        /*
-         * The following variables are being reused for MPI_Scatterv:
-         *      requests -> displs
-         *      domainSizes -> counts
-         */
-        int* displs = (int *) requests;
-        for( i = 0; i < numProcs; i++ ) {
-            displs[i] = 0; 
+        displs = (int *) calloc(numProcs, sizeof(int));
+        displs[0] = 0;
+        printf("Rank 0 gets:\n\tCounts: %i\n\tDispls: %i\n", domainSizes[0], displs[0]);
+        /* TODO: Find out how this works mathematically: */
+        for( i = 1; i < numProcs; i++ ) {
+            displs[i] = (-2 * i * CELL_GRID_WIDTH);
             for( j = 0; j < i; j++ )
                 displs[i] += domainSizes[j];
             printf("Rank %i gets:\n\tCounts: %i\n\tDispls: %i\n", i, domainSizes[i], displs[i]);
         }
         cellRow = (char *) malloc(domainSize);
 
+        MPI_Waitall(numProcs-1, requests, MPI_STATUSES_IGNORE);
         MPI_Scatterv(cellGrid, domainSizes, displs, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
         free(domainSizes);
         free(requests);
