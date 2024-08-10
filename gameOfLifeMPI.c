@@ -1,28 +1,56 @@
 #include "gameOfLifeMPI.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <unistd.h> /* For sleep() function. */
 #include <mpi.h>
 
-void updateRow( char* cellRow, char* above, char* below) {
-    int i, x;
+void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
+    int i, row, col, start, end;
     char* neighbourGrid;
 
-    for( i = 0; i < CELL_GRID_HEIGHT*CELL_GRID_WIDTH; i++ )
-        neighbourGrid[i] = 0;
+    neighbourGrid = malloc(domainSize-CELL_GRID_WIDTH);
+
+    if( rank == 0 ) { start = 0; end = domainSize-CELL_GRID_WIDTH; }
+    else { start = CELL_GRID_WIDTH; end = domainSize; }
+
+    printf("Rank %i: Start=%i\tEnd=%i\n", rank, start, end);
 
     /* Get neighbour count for all cells: */
-    for( i = 0; i < CELL_GRID_WIDTH; i++ ) {
-        x = above[i] + below[i];
-        neighbourGrid[i] += x;
-        x += cellRow[i];
-        if( i != 0 ) { neighbourGrid[i-1] += x; }
-        if( i != CELL_GRID_WIDTH ) { neighbourGrid[i-1] += x; }
+    for( i = start; i < end; i++ ) {
+        row = i / CELL_GRID_WIDTH;
+        col = i % CELL_GRID_WIDTH;
+        if( rank == 0 ) { neighbourGrid[i-start] = domain[((row+1)*CELL_GRID_WIDTH)+col] + ( i/CELL_GRID_WIDTH == 0 ? 0 : domain[((row-1)*CELL_GRID_WIDTH)+col] ); }
+        else { neighbourGrid[i-start] = domain[((row-1)*CELL_GRID_WIDTH)+col] + ( i/CELL_GRID_WIDTH == domainSize/CELL_GRID_WIDTH ? 0 : domain[((row+1)*CELL_GRID_WIDTH)+col] ); }
+        if( i != start ) { neighbourGrid[i-start-1] += neighbourGrid[i] + domain[i]; }
+        if( i != end-1 ) { neighbourGrid[i-start+1] += neighbourGrid[i] + domain[i]; }
     }
 
-    for( i = 0; i < CELL_GRID_WIDTH; i++ ) {
-        if( cellRow[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { cellRow[i] = 0; }
-        if( !cellRow[i] && neighbourGrid[i] == 3 ) { cellRow[i] = 1; }
+    for( i = 0; i < domainSize; i++ ) { printf("%c%i ", i%CELL_GRID_WIDTH==0? '\n' : ' ', (int) neighbourGrid[i]); }
+
+    for( i = start; i < end; i++ ) {
+        if( domain[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { domain[i] = 0; }
+        if( !domain[i] && neighbourGrid[i] == 3 ) { domain[i] = 1; }
+    }
+}
+
+void updateCentreDomain( char* domain, int domainSize ) {
+    int i, x, row, col, start, end;
+    char* neighbourGrid;
+
+    neighbourGrid = malloc(domainSize-(2*CELL_GRID_WIDTH));
+
+    /* Get neighbour count for all cells: */
+    for( i = CELL_GRID_WIDTH; i < domainSize; i++ ) {
+        row = i / CELL_GRID_WIDTH;
+        col = i % CELL_GRID_WIDTH;
+        neighbourGrid[i] = domain[((row+1)*CELL_GRID_WIDTH)+col] + domain[((row+1)*CELL_GRID_WIDTH)+col];
+        if( i != 0 ) { neighbourGrid[i-1] += neighbourGrid[i] + domain[i]; }
+        if( i != CELL_GRID_WIDTH ) { neighbourGrid[i-1] += neighbourGrid[i] + domain[i]; }
+    }
+
+    for( i = 0; i < domainSize; i++ ) {
+        if( domain[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { domain[i] = 0; }
+        if( !domain[i] && neighbourGrid[i] == 3 ) { domain[i] = 1; }
     }
 }
 
@@ -98,7 +126,7 @@ void createLightweightSpaceship( char* cellGrid, int strt_r, int strt_c ) {
 
 int main( int argc, char** argv ) {
     char* cellGrid;
-    char* cellRow;
+    char* domain;
     int i, j, domainSize;
 
     /* TODO: In order to parallelise:
@@ -142,25 +170,24 @@ int main( int argc, char** argv ) {
 
         displs = (int *) calloc(numProcs, sizeof(int));
         displs[0] = 0;
-        printf("Rank 0 gets:\n\tCounts: %i\n\tDispls: %i\n", domainSizes[0], displs[0]);
-        /* TODO: Find out how this works mathematically: */
+        printf("Rank 0 gets (in rows):\n\tCounts: %i\n\tDispls: %i\n", domainSizes[0]/CELL_GRID_WIDTH, displs[0]/CELL_GRID_WIDTH);
         for( i = 1; i < numProcs; i++ ) {
             displs[i] = (-2 * i * CELL_GRID_WIDTH);
             for( j = 0; j < i; j++ )
                 displs[i] += domainSizes[j];
-            printf("Rank %i gets:\n\tCounts: %i\n\tDispls: %i\n", i, domainSizes[i], displs[i]);
+            printf("Rank %i gets (in rows):\n\tCounts: %i\n\tDispls: %i\n", i, domainSizes[i]/CELL_GRID_WIDTH, displs[i]/CELL_GRID_WIDTH);
         }
-        cellRow = (char *) malloc(domainSize);
+        domain = (char *) malloc(domainSize);
 
         MPI_Waitall(numProcs-1, requests, MPI_STATUSES_IGNORE);
-        MPI_Scatterv(cellGrid, domainSizes, displs, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
+        MPI_Scatterv(cellGrid, domainSizes, displs, MPI_CHAR, domain, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
         free(domainSizes);
         free(requests);
     }
     else {
         MPI_Recv(&domainSize, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        cellRow = (char *) malloc(domainSize);
-        MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, cellRow, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
+        domain = (char *) malloc(domainSize);
+        MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, domain, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -170,7 +197,15 @@ int main( int argc, char** argv ) {
             for( j = 0; j < domainSize; j++ ) {
                 if( j % CELL_GRID_WIDTH == 0 )
                     printf("\n");
-                printf("%i ", cellRow[j]);
+                printf("%i ", domain[j]);
+            }
+            printf("\nSimulated 1 Generation:\n");
+            if( rank == 0 || rank == numProcs-1 ) { updateBoundaryDomain(domain, domainSize, rank); }
+            else { updateCentreDomain(domain, domainSize); }
+            for( j = 0; j < domainSize; j++ ) {
+                if( j % CELL_GRID_WIDTH == 0 )
+                    printf("\n");
+                printf("%i ", domain[j]);
             }
             printf("\n\n");
         }
@@ -179,7 +214,7 @@ int main( int argc, char** argv ) {
 
     /* TODO: Binary tree reduction to rank 0: */
 
-    free(cellRow);
+    free(domain);
     if( rank == 0 )
         freeCellGrid(cellGrid);
 	MPI_Finalize();
