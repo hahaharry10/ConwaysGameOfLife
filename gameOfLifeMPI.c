@@ -5,50 +5,80 @@
 #include <mpi.h>
 
 void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
-    int i, row, col, start, end;
+    int i, row, col;
     char* neighbourGrid;
 
     neighbourGrid = malloc(domainSize-CELL_GRID_WIDTH);
-
-    if( rank == 0 ) { start = 0; end = domainSize-CELL_GRID_WIDTH; }
-    else { start = CELL_GRID_WIDTH; end = domainSize; }
-
-    printf("Rank %i: Start=%i\tEnd=%i\n", rank, start, end);
+    for( i = 0; i < domainSize-(2*CELL_GRID_WIDTH); i++ )
+        neighbourGrid[i] = 0;
 
     /* Get neighbour count for all cells: */
-    for( i = start; i < end; i++ ) {
+    for( i = 0; i < domainSize; i++ ) {
         row = i / CELL_GRID_WIDTH;
         col = i % CELL_GRID_WIDTH;
-        if( rank == 0 ) { neighbourGrid[i-start] = domain[((row+1)*CELL_GRID_WIDTH)+col] + ( i/CELL_GRID_WIDTH == 0 ? 0 : domain[((row-1)*CELL_GRID_WIDTH)+col] ); }
-        else { neighbourGrid[i-start] = domain[((row-1)*CELL_GRID_WIDTH)+col] + ( i/CELL_GRID_WIDTH == domainSize/CELL_GRID_WIDTH ? 0 : domain[((row+1)*CELL_GRID_WIDTH)+col] ); }
-        if( i != start ) { neighbourGrid[i-start-1] += neighbourGrid[i] + domain[i]; }
-        if( i != end-1 ) { neighbourGrid[i-start+1] += neighbourGrid[i] + domain[i]; }
+        if( domain[i] ) {
+            if( row != 0 ) {
+                ++neighbourGrid[i-CELL_GRID_WIDTH];
+                if( col != 0 ) { ++neighbourGrid[i-CELL_GRID_WIDTH-1]; }
+                if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i-CELL_GRID_WIDTH+1]; }
+            }
+            if( row != (domainSize/CELL_GRID_WIDTH)-1 ) {
+                ++neighbourGrid[i-CELL_GRID_WIDTH];
+                if( col != 0 ) { ++neighbourGrid[i+CELL_GRID_WIDTH-1]; }
+                if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i+CELL_GRID_WIDTH+1]; }
+            }
+            if( col != 0 ) { ++neighbourGrid[i-1]; }
+            if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i+1]; }
+        }
     }
 
-    for( i = 0; i < domainSize; i++ ) { printf("%c%i ", i%CELL_GRID_WIDTH==0? '\n' : ' ', (int) neighbourGrid[i]); }
+    /* for( i = 0; i < domainSize; i++ ) {
+        printf("%i ", (int) neighbourGrid[i]);
+        if( (i+1)%CELL_GRID_WIDTH == 0 )
+            printf("\n");
+    } */
 
-    for( i = start; i < end; i++ ) {
+    for( i = 0; i < domainSize; i++ ) {
         if( domain[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { domain[i] = 0; }
         if( !domain[i] && neighbourGrid[i] == 3 ) { domain[i] = 1; }
     }
 }
 
 void updateCentreDomain( char* domain, int domainSize ) {
-    int i, x, row, col, start, end;
+    int i, x, row, col;
     char* neighbourGrid;
 
-    neighbourGrid = malloc(domainSize-(2*CELL_GRID_WIDTH));
+    neighbourGrid = malloc(domainSize);
+    for( i = 0; i < domainSize; i++ )
+        neighbourGrid[i] = 0;
 
     /* Get neighbour count for all cells: */
-    for( i = CELL_GRID_WIDTH; i < domainSize; i++ ) {
+    for( i = 0; i < domainSize; i++ ) {
         row = i / CELL_GRID_WIDTH;
         col = i % CELL_GRID_WIDTH;
-        neighbourGrid[i] = domain[((row+1)*CELL_GRID_WIDTH)+col] + domain[((row+1)*CELL_GRID_WIDTH)+col];
-        if( i != 0 ) { neighbourGrid[i-1] += neighbourGrid[i] + domain[i]; }
-        if( i != CELL_GRID_WIDTH ) { neighbourGrid[i-1] += neighbourGrid[i] + domain[i]; }
+        if( domain[i] ) {
+            if( row != 0 ) {
+                ++neighbourGrid[i-CELL_GRID_WIDTH];
+                if( col != 0 ) { ++neighbourGrid[i-CELL_GRID_WIDTH-1]; }
+                if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i-CELL_GRID_WIDTH+1]; }
+            }
+            if( row != (domainSize/CELL_GRID_WIDTH)-1 ) {
+                ++neighbourGrid[i+CELL_GRID_WIDTH];
+                if( col != 0 ) { ++neighbourGrid[i+CELL_GRID_WIDTH-1]; }
+                if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i+CELL_GRID_WIDTH+1]; }
+            }
+            if( col != 0 ) { ++neighbourGrid[i-1]; }
+            if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i+1]; }
+        }
     }
 
-    for( i = 0; i < domainSize; i++ ) {
+    /* for( i = 0; i < domainSize; i++ ) {
+        printf("%i ", (int) neighbourGrid[i]);
+        if( (i+1)%CELL_GRID_WIDTH == 0 )
+            printf("\n");
+    } */
+
+    for( i = CELL_GRID_WIDTH; i < domainSize-CELL_GRID_WIDTH; i++ ) {
         if( domain[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { domain[i] = 0; }
         if( !domain[i] && neighbourGrid[i] == 3 ) { domain[i] = 1; }
     }
