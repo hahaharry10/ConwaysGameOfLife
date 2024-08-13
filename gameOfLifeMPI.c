@@ -4,6 +4,8 @@
 #include <unistd.h> /* For sleep() function. */
 #include <mpi.h>
 
+#define TESTING_MODE 0
+
 void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
     int i, row, col;
     char* neighbourGrid;
@@ -158,6 +160,8 @@ int main( int argc, char** argv ) {
     char* cellGrid;
     char* domain;
     int i, j, domainSize;
+    MPI_Request* requests;
+    int *domainSizes, *displs;
 
     /* TODO: In order to parallelise:
      *  - [ ] Send each rank their cells and their required ghost cells.
@@ -171,15 +175,13 @@ int main( int argc, char** argv ) {
     MPI_Comm_rank( MPI_COMM_WORLD, &rank     );
 
     if( rank == 0 ) {
-        MPI_Request* requests;
-        int *domainSizes, *displs;
 
         cellGrid = initCellGrid();
         createToad(cellGrid, 5, 5);
         createBeacon(cellGrid, 10, 10);
         createBlock(cellGrid, 10, 5);
         createGlider(cellGrid, 0, 0);
-        createLightweightSpaceship(cellGrid, 14, 15);
+        createLightweightSpaceship(cellGrid, 16, 15);
         printCellGrid(cellGrid);
 
         domainSize = (CELL_GRID_HEIGHT / numProcs);
@@ -200,19 +202,28 @@ int main( int argc, char** argv ) {
 
         displs = (int *) calloc(numProcs, sizeof(int));
         displs[0] = 0;
-        printf("Rank 0 gets (in rows):\n\tCounts: %i\n\tDispls: %i\n", domainSizes[0]/CELL_GRID_WIDTH, displs[0]/CELL_GRID_WIDTH);
         for( i = 1; i < numProcs; i++ ) {
             displs[i] = (-2 * i * CELL_GRID_WIDTH);
             for( j = 0; j < i; j++ )
                 displs[i] += domainSizes[j];
-            printf("Rank %i gets (in rows):\n\tCounts: %i\n\tDispls: %i\n", i, domainSizes[i]/CELL_GRID_WIDTH, displs[i]/CELL_GRID_WIDTH);
         }
         domain = (char *) malloc(domainSize);
 
         MPI_Waitall(numProcs-1, requests, MPI_STATUSES_IGNORE);
         MPI_Scatterv(cellGrid, domainSizes, displs, MPI_CHAR, domain, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
-        free(domainSizes);
-        free(requests);
+
+        domainSizes[0] -= CELL_GRID_WIDTH;
+        for( i = 1; i < numProcs-1; i++ ) {
+            domainSizes[i] -= 2*CELL_GRID_WIDTH;
+            displs[i] = 0;
+            for( j = 0; j < i; j++ )
+                displs[i] += domainSizes[j];
+        }
+        domainSizes[numProcs-1] -= CELL_GRID_WIDTH;
+        displs[numProcs-1] = 0;
+        for( i = 0; i < numProcs-1; i++ ) {
+            displs[numProcs-1] += domainSizes[i];
+        }
     }
     else {
         MPI_Recv(&domainSize, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -221,6 +232,8 @@ int main( int argc, char** argv ) {
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
+    /* TODO: When implementation is complete, move updating functions outside synchronised loop. */
+    #if TESTING_MODE
     for( i = 0; i < numProcs; i++ ) {
         if( i == rank ) {
             printf("Rank %i: Domain Size %i\n", rank, domainSize);
@@ -230,8 +243,10 @@ int main( int argc, char** argv ) {
                 printf("%i ", domain[j]);
             }
             printf("\nSimulated 1 Generation:\n");
+    #endif
             if( rank == 0 || rank == numProcs-1 ) { updateBoundaryDomain(domain, domainSize, rank); }
             else { updateCentreDomain(domain, domainSize); }
+    #if TESTING_MODE
             for( j = 0; j < domainSize; j++ ) {
                 if( j % CELL_GRID_WIDTH == 0 )
                     printf("\n");
@@ -241,12 +256,28 @@ int main( int argc, char** argv ) {
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
+    #endif
 
-    /* TODO: Binary tree reduction to rank 0: */
+    MPI_Gatherv((rank == 0 ? domain : domain + CELL_GRID_WIDTH ),
+                domainSize - ( rank == 0 || rank == numProcs-1 ? CELL_GRID_WIDTH : 2*CELL_GRID_WIDTH ),
+                MPI_CHAR,
+                (rank == 0 ? cellGrid : NULL),
+                (rank==0?domainSizes:NULL),
+                (rank==0?displs:NULL),
+                MPI_CHAR, 0, MPI_COMM_WORLD
+    );
 
-    free(domain);
-    if( rank == 0 )
+
+    if( rank == 0 ) {
+        printf("\n\n");
+        printCellGrid(cellGrid);
+    }
+    if( rank == 0 ) {
+        free(domain);
+        free(domainSizes);
+        free(displs);
         freeCellGrid(cellGrid);
+    }
 	MPI_Finalize();
     return 0;
 
