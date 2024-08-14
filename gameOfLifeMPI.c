@@ -4,7 +4,7 @@
 #include <unistd.h> /* For sleep() function. */
 #include <mpi.h>
 
-#define TESTING_MODE 0
+#define TESTING_MODE 1
 
 void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
     int i, row, col;
@@ -159,7 +159,7 @@ void createLightweightSpaceship( char* cellGrid, int strt_r, int strt_c ) {
 int main( int argc, char** argv ) {
     char* cellGrid;
     char* domain;
-    int i, j, domainSize;
+    int i, j, domainSize, numComms;
     MPI_Request* requests;
     int *domainSizes, *displs;
 
@@ -194,7 +194,7 @@ int main( int argc, char** argv ) {
             domainSizes[i%numProcs] += CELL_GRID_WIDTH;
 
         /* Asynchonously send load size to all other ranks */
-        requests = (MPI_Request *) calloc(numProcs, sizeof(MPI_Request));
+        requests = (MPI_Request *) calloc( numProcs, sizeof(MPI_Request) );
         for( i = 1; i < numProcs; i++ )
             MPI_Isend(domainSizes+i, 1, MPI_INT, i, 0, MPI_COMM_WORLD, requests+i-1);
 
@@ -231,59 +231,133 @@ int main( int argc, char** argv ) {
         MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, domain, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    /* TODO: When implementation is complete, move updating functions outside synchronised loop. */
-    #if TESTING_MODE
-    for( i = 0; i < numProcs; i++ ) {
-        if( i == rank ) {
-            printf("Rank %i: Domain Size %i\n", rank, domainSize);
-            for( j = 0; j < domainSize; j++ ) {
-                if( j % CELL_GRID_WIDTH == 0 )
-                    printf("\n");
-                printf("%i ", domain[j]);
-            }
-            printf("\nSimulated 1 Generation:\n");
-    #endif
-            if( rank == 0 || rank == numProcs-1 ) { updateBoundaryDomain(domain, domainSize, rank); }
-            else { updateCentreDomain(domain, domainSize); }
-    #if TESTING_MODE
-            for( j = 0; j < domainSize; j++ ) {
-                if( j % CELL_GRID_WIDTH == 0 )
-                    printf("\n");
-                printf("%i ", domain[j]);
-            }
-            printf("\n\n");
-        }
+    numComms = (rank == 0 || rank == numProcs-1 ? 2 : 4);
+    if( rank == 0 )
+        /* Reallocate request buffer */
+        requests = realloc(requests, numComms);
+    else
+        requests = (MPI_Request *) calloc(numComms, sizeof(MPI_Request));
+    while( 1 ) {
+
+        /* TODO: When implementation is complete, move updating functions outside synchronised loop. */
+#if TESTING_MODE
         MPI_Barrier(MPI_COMM_WORLD);
+        for( i = 0; i < numProcs; i++ ) {
+            if( i == rank ) {
+                printf("Rank %i: Domain Size %i\n", rank, domainSize);
+                for( j = 0; j < domainSize; j++ ) {
+                    if( j % CELL_GRID_WIDTH == 0 )
+                        printf("\n");
+                    printf("%i ", domain[j]);
+                }
+                printf("\nSimulated 1 Generation:\n");
+                #endif
+                if( rank == 0 || rank == numProcs-1 ) { updateBoundaryDomain(domain, domainSize, rank); }
+                else { updateCentreDomain(domain, domainSize); }
+#if TESTING_MODE
+                for( j = 0; j < domainSize; j++ ) {
+                    if( j % CELL_GRID_WIDTH == 0 )
+                        printf("\n");
+                    printf("%i ", domain[j]);
+                }
+                printf("\n\n");
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+#endif
+
+        MPI_Gatherv((rank == 0 ? domain : domain + CELL_GRID_WIDTH ),
+                    domainSize - ( rank == 0 || rank == numProcs-1 ? CELL_GRID_WIDTH : 2*CELL_GRID_WIDTH ),
+                    MPI_CHAR,
+                    (rank == 0 ? cellGrid : NULL),
+                    (rank==0?domainSizes:NULL),
+                    (rank==0?displs:NULL),
+                    MPI_CHAR, 0, MPI_COMM_WORLD
+                    );
+
+        /* TODO: Send ghost cells to neighbours: */
+        if( rank == 0 ) {
+            /* Send and receive only once (downwards). */
+            // printf("Rank %i: Sending to %i (async)\n", rank, rank+1);
+            MPI_Isend(domain+domainSize-(2*CELL_GRID_WIDTH), CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+0);
+            // printf("Rank %i: Receiving from %i\n", rank, rank+1);
+            MPI_Irecv(domain+domainSize-CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+1);
+        } else if( rank == numProcs-1 ) {
+            /* Send and receive only once (upwards). */
+            // printf("Rank %i: Receiving from %i (async)\n", rank, rank-1);
+            MPI_Irecv(domain, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+0);
+            // printf("Rank %i: Sending to %i\n", rank, rank-1);
+            MPI_Isend(domain+CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+1);
+        } else {
+            /* Send and receive twice (both ways). */
+            // printf("Rank %i: Receiving from %i (async)\n", rank, rank+1);
+            MPI_Irecv(domain+domainSize-CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+0);
+            // printf("Rank %i: Receiving from %i (async)\n", rank, rank-1);
+            MPI_Irecv(domain, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+1);
+            // printf("Rank %i: Sending to %i\n", rank, rank+1);
+            MPI_Isend(domain+domainSize-(2*CELL_GRID_WIDTH), CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+2);
+            // printf("Rank %i: Sending to %i\n", rank, rank-1);
+            MPI_Isend(domain+CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+3);
+        }
+
+        MPI_Waitall(numComms, requests, MPI_STATUSES_IGNORE);
+
+#if TESTING_MODE
+        for( i = 0; i < numProcs; i++ ) {
+            if( rank == i ) {
+                if( rank != 0 ) {
+                    printf("Rank %i Received:\t", rank);
+                    for( j = 0; j < CELL_GRID_WIDTH; j++ )
+                        printf("%i ", *(domain+j));
+                    printf("\n");
+                }
+                if( rank != numProcs-1 ) {
+                    printf("Rank %i -> Rank %i\t", rank, rank+1);
+                    for( j = 0; j < CELL_GRID_WIDTH; j++ )
+                        printf("%i ", *(domain+domainSize-(2*CELL_GRID_WIDTH)+j));
+                    printf("\n");
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+        for( i = numProcs-1; i >= 0; i-- ) {
+            if( rank == i ) {
+                if( rank != numProcs-1 ) {
+                    printf("Rank %i Received:\t", rank);
+                    for( j = 0; j < CELL_GRID_WIDTH; j++ )
+                        printf("%i ", *(domain+domainSize-CELL_GRID_WIDTH+j));
+                    printf("\n");
+                }
+                if( rank != 0 ) {
+                    printf("Rank %i -> Rank %i\t", rank, rank-1);
+                    for( j = 0; j < CELL_GRID_WIDTH; j++ )
+                        printf("%i ", *(domain+CELL_GRID_WIDTH+j));
+                    printf("\n");
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+#endif
+
+        if( rank == 0 ) {
+            printf("\n\n");
+            printCellGrid(cellGrid);
+        }
+
+        sleep(1);
     }
-    #endif
-
-    MPI_Gatherv((rank == 0 ? domain : domain + CELL_GRID_WIDTH ),
-                domainSize - ( rank == 0 || rank == numProcs-1 ? CELL_GRID_WIDTH : 2*CELL_GRID_WIDTH ),
-                MPI_CHAR,
-                (rank == 0 ? cellGrid : NULL),
-                (rank==0?domainSizes:NULL),
-                (rank==0?displs:NULL),
-                MPI_CHAR, 0, MPI_COMM_WORLD
-    );
-
-
     if( rank == 0 ) {
-        printf("\n\n");
-        printCellGrid(cellGrid);
-    }
-    if( rank == 0 ) {
-        free(domain);
         free(domainSizes);
         free(displs);
         freeCellGrid(cellGrid);
     }
+    free(domain);
+    free(requests);
 	MPI_Finalize();
     return 0;
 
     while( 1 ) {
         printCellGrid(cellGrid);
-        runSimulation(cellGrid);
 /*         break; */
         sleep(2);
     }
