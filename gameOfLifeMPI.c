@@ -4,7 +4,7 @@
 #include <unistd.h> /* For sleep() function. */
 #include <mpi.h>
 
-#define TESTING_MODE 1
+#define TESTING_MODE 0
 
 void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
     int i, row, col;
@@ -25,7 +25,7 @@ void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
                 if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i-CELL_GRID_WIDTH+1]; }
             }
             if( row != (domainSize/CELL_GRID_WIDTH)-1 ) {
-                ++neighbourGrid[i-CELL_GRID_WIDTH];
+                ++neighbourGrid[i+CELL_GRID_WIDTH];
                 if( col != 0 ) { ++neighbourGrid[i+CELL_GRID_WIDTH-1]; }
                 if( col != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[i+CELL_GRID_WIDTH+1]; }
             }
@@ -34,11 +34,16 @@ void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
         }
     }
 
-    /* for( i = 0; i < domainSize; i++ ) {
+#if TESTING_MODE
+    printf("Rank %i: Neighbourhood Grid...\n", rank);
+    for( i = 0; i < domainSize; i++ ) {
         printf("%i ", (int) neighbourGrid[i]);
         if( (i+1)%CELL_GRID_WIDTH == 0 )
             printf("\n");
-    } */
+    }
+    printf("\n");
+    printf("\n");
+#endif
 
     for( i = 0; i < domainSize; i++ ) {
         if( domain[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { domain[i] = 0; }
@@ -74,11 +79,18 @@ void updateCentreDomain( char* domain, int domainSize ) {
         }
     }
 
-    /* for( i = 0; i < domainSize; i++ ) {
+
+
+#if TESTING_MODE
+    printf("Rank %i: Neighbourhood Grid...\n", rank);
+    for( i = 0; i < domainSize; i++ ) {
         printf("%i ", (int) neighbourGrid[i]);
         if( (i+1)%CELL_GRID_WIDTH == 0 )
             printf("\n");
-    } */
+    }
+    printf("\n");
+    printf("\n");
+#endif
 
     for( i = CELL_GRID_WIDTH; i < domainSize-CELL_GRID_WIDTH; i++ ) {
         if( domain[i] && (neighbourGrid[i] < 2 || neighbourGrid[i] > 3) ) { domain[i] = 0; }
@@ -178,7 +190,9 @@ int main( int argc, char** argv ) {
 
         cellGrid = initCellGrid();
         createToad(cellGrid, 5, 5);
-        createBeacon(cellGrid, 10, 10);
+        createBeacon(cellGrid, 7, 10);
+        createBeacon(cellGrid, 0, 10);
+        createBeacon(cellGrid, 15, 2);
         createBlock(cellGrid, 10, 5);
         createGlider(cellGrid, 0, 0);
         createLightweightSpaceship(cellGrid, 16, 15);
