@@ -1,8 +1,6 @@
 CC = clang
 CC_MPI = mpicc
-C89 = -std=c89
-C99 = -std=c99
-CFLAGS = -pedantic -g
+CFLAGS = -pedantic -g -std=c89
 HEADERS = *.h
 MAINS = 	gameOfLife.o gameOfLifeMPI.o
 TARGETS	=	gameOfLife gameOfLifeMPI
@@ -11,17 +9,17 @@ TARGETS	=	gameOfLife gameOfLifeMPI
 all: ${TARGETS}
 
 clean:
-	rm ${TARGETS} ${MAINS} ${MODULES}
+	rm ${TARGETS} ${MAINS} ${MODULES} *.o
 
-gameOfLifeMPI: gameOfLifeMPI.o
-	$(CC_MPI) $(C99) $(CFLAGS) -o $@ $^
+gameOfLifeMPI: gameOfLife.o
+	$(CC_MPI) $(CFLAGS) -o $@ $^
 
 gameOfLife: gameOfLife.o
-	$(CC) $(C89) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 gameOfLife.o: gameOfLife.c ${HEADERS}
-	${CC_MPI} -c $(C89) $(CFLAGS) -o $@ $<
+	${CC_MPI} -c $(CFLAGS) -o $@ $<
 
 gameOfLifeMPI.o: gameOfLifeMPI.c ${HEADERS}
-	${CC_MPI} -c $(C99) $(CFLAGS) -o $@ $<
+	${CC_MPI} -c $(CFLAGS) -o $@ $<
 
