@@ -1,17 +1,17 @@
-CC = mpicc
-CFLAGS = -pedantic -g -std=c99
+CC = clang
+CFLAGS = -pedantic -g -std=c89
 HEADERS = *.h
-MAINS = 	gameOfLifeMPI.o
-TARGETS	=	gameOfLifeMPI
+MAINS = 	gameOfLife.o
+TARGETS	=	gameOfLife
 .PHONY: all clean
 
 all: ${TARGETS}
 
 clean:
-	rm $(TARGETS) $(MAINS) *.o
+	rm ${TARGETS} ${MAINS} ${MODULES} *.o
 
-gameOfLifeMPI: gameOfLifeMPI.o
-	$(CC) $(CFLAGS) -o $@ $^
+gameOfLife: gameOfLife.o
+	$(CC) $(CFLAGS) $(C89FLAGS) -o $@ $^
 
 %.o: %.c ${HEADERS}
-	$(CC) -c $(CFLAGS) -o $@ $<
+	${CC} -c $(CFLAGS) ${C89FLAGS} -o $@ $<
