@@ -181,6 +181,12 @@ int main( int argc, char** argv ) {
     MPI_Comm_size( MPI_COMM_WORLD, &numProcs );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank     );
 
+    if( numProcs == 1 ) {
+        fprintf(stderr, "ERROR: Parallelisation require more than one process.\n");
+        MPI_Abort(MPI_COMM_WORLD, MPI_ERR_ARG);
+        return EXIT_FAILURE;
+    }
+
     if( rank == 0 ) {
 
         cellGrid = initCellGrid();
