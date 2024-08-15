@@ -10,8 +10,8 @@ void updateBoundaryDomain( char* domain, int domainSize, int rank ) {
     int i, row, col;
     char* neighbourGrid;
 
-    neighbourGrid = malloc(domainSize-CELL_GRID_WIDTH);
-    for( i = 0; i < domainSize-(2*CELL_GRID_WIDTH); i++ )
+    neighbourGrid = malloc(domainSize);
+    for( i = 0; i < domainSize; i++ )
         neighbourGrid[i] = 0;
 
     /* Get neighbour count for all cells: */
@@ -82,7 +82,7 @@ void updateCentreDomain( char* domain, int domainSize ) {
 
 
 #if TESTING_MODE
-    printf("Rank %i: Neighbourhood Grid...\n", rank);
+    printf("Neighbourhood Grid...\n");
     for( i = 0; i < domainSize; i++ ) {
         printf("%i ", (int) neighbourGrid[i]);
         if( (i+1)%CELL_GRID_WIDTH == 0 )
@@ -175,11 +175,6 @@ int main( int argc, char** argv ) {
     MPI_Request* requests;
     int *domainSizes, *displs;
 
-    /* TODO: In order to parallelise:
-     *  - [ ] Send each rank their cells and their required ghost cells.
-     *  - [ ] Send updated row to neighbouring ranks to update their ghost cells.
-     */
-
     /* Initialise MPI and get the rank and no. of processes. */
     int rank, numProcs;
     MPI_Init( &argc, &argv );
@@ -222,6 +217,12 @@ int main( int argc, char** argv ) {
                 displs[i] += domainSizes[j];
         }
         domain = (char *) malloc(domainSize);
+
+#if TESTING_MODE
+        printf("Rank %i: Domain sizes for each rank:\n", rank);
+        for( i = 0; i < numProcs; i++ )
+            printf("\tRank %i: %i (%i rows)\n", i, domainSizes[i], domainSizes[i] / CELL_GRID_WIDTH);
+#endif
 
         MPI_Waitall(numProcs-1, requests, MPI_STATUSES_IGNORE);
         MPI_Scatterv(cellGrid, domainSizes, displs, MPI_CHAR, domain, domainSize, MPI_CHAR, 0, MPI_COMM_WORLD);
@@ -292,31 +293,24 @@ int main( int argc, char** argv ) {
         /* TODO: Send ghost cells to neighbours: */
         if( rank == 0 ) {
             /* Send and receive only once (downwards). */
-            // printf("Rank %i: Sending to %i (async)\n", rank, rank+1);
             MPI_Isend(domain+domainSize-(2*CELL_GRID_WIDTH), CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+0);
-            // printf("Rank %i: Receiving from %i\n", rank, rank+1);
             MPI_Irecv(domain+domainSize-CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+1);
         } else if( rank == numProcs-1 ) {
             /* Send and receive only once (upwards). */
-            // printf("Rank %i: Receiving from %i (async)\n", rank, rank-1);
             MPI_Irecv(domain, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+0);
-            // printf("Rank %i: Sending to %i\n", rank, rank-1);
             MPI_Isend(domain+CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+1);
         } else {
             /* Send and receive twice (both ways). */
-            // printf("Rank %i: Receiving from %i (async)\n", rank, rank+1);
             MPI_Irecv(domain+domainSize-CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+0);
-            // printf("Rank %i: Receiving from %i (async)\n", rank, rank-1);
             MPI_Irecv(domain, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+1);
-            // printf("Rank %i: Sending to %i\n", rank, rank+1);
             MPI_Isend(domain+domainSize-(2*CELL_GRID_WIDTH), CELL_GRID_WIDTH, MPI_CHAR, rank+1, 0, MPI_COMM_WORLD, requests+2);
-            // printf("Rank %i: Sending to %i\n", rank, rank-1);
             MPI_Isend(domain+CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+3);
         }
 
         MPI_Waitall(numComms, requests, MPI_STATUSES_IGNORE);
 
 #if TESTING_MODE
+        MPI_Barrier(MPI_COMM_WORLD);
         for( i = 0; i < numProcs; i++ ) {
             if( rank == i ) {
                 if( rank != 0 ) {
