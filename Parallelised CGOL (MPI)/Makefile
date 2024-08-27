@@ -3,7 +3,7 @@ CC_MPI = mpicc
 C99 = -std=c99
 CFLAGS = -pedantic -g
 HEADERS = *.h
-MAINS = 	gameOfLifeMPI.c
+MAINS = 	gameOfLifeMPI.o
 TARGETS	=	gameOfLifeMPI
 .PHONY: all clean
 
