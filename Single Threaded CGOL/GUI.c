@@ -31,8 +31,8 @@ int INIT_GRAPHICS(SDL_Window** window, SDL_Renderer** renderer, SDL_Rect** cells
         return 1;
     }
     for( i = 0; i < CELL_GRID_HEIGHT*CELL_GRID_WIDTH; i++ ) {
-        (*cells)[i].x = 200 + ((i % CELL_GRID_WIDTH) * CELL_WIDTH);
-        (*cells)[i].y = 200 + ((i / CELL_GRID_WIDTH) * CELL_HEIGHT);
+        (*cells)[i].x = GRID_START_X + ((i % CELL_GRID_WIDTH) * CELL_WIDTH);
+        (*cells)[i].y = GRID_START_Y + ((i / CELL_GRID_WIDTH) * CELL_HEIGHT);
         (*cells)[i].w = CELL_WIDTH;
         (*cells)[i].h = CELL_HEIGHT;
     }

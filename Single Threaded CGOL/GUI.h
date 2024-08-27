@@ -6,6 +6,8 @@
 
 #define SCREEN_WIDTH    1940
 #define SCREEN_HEIGHT   1080
+#define GRID_START_X 200
+#define GRID_START_Y 200
 
 #define CELL_GRID_WIDTH 20
 #define CELL_GRID_HEIGHT 20
