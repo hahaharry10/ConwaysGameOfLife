@@ -1,6 +1,5 @@
 #include "gameOfLife.h"
 #include "GUI.h"
-#include "SDL_events.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,13 +25,13 @@ void runSimulation(char** cellGrid) {
                     if( c != 0 ) { ++neighbourGrid[r-1][c-1]; }                  /* Top Left */
                     if( c != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[r-1][c+1]; }  /* Top Right */
                 }
-                if( r != CELL_GRID_HEIGHT ) {
+                if( r != CELL_GRID_HEIGHT-1 ) {
                     ++neighbourGrid[r+1][c];                                     /* Immediate Below */
                     if( c != 0 ) { ++neighbourGrid[r+1][c-1]; }                  /* Lower Left */
                     if( c != CELL_GRID_HEIGHT-1 ) { ++neighbourGrid[r+1][c+1]; } /* Lower Right */
                 }
                 if( c != 0 ) { ++neighbourGrid[r][c-1]; }                        /* Immediate Left */
-                if( c != CELL_GRID_WIDTH ) { ++neighbourGrid[r][c+1]; }          /* Immediate Right */
+                if( c != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[r][c+1]; }          /* Immediate Right */
             }
         }
 
@@ -116,6 +115,7 @@ int main( int argc, char** argv ) {
     SDL_Event e;
     bool quit;
     GAME_STATE state;
+    int delay;
 
     cellGrid = initCellGrid();
     if( INIT_GRAPHICS(&window, &renderer, &cells) ) {
@@ -125,12 +125,13 @@ int main( int argc, char** argv ) {
 
     quit = false;
     state = pause;
+    delay = 1000;
     RENDER_CELLS(cellGrid, renderer, cells);
     while( !quit ) {
         if( state == play ) {
             RENDER_CELLS(cellGrid, renderer, cells);
             runSimulation(cellGrid);
-            SDL_Delay(1000);
+            SDL_Delay(delay);
         }
         while ( SDL_PollEvent(&e) ) {
             if( e.type == SDL_QUIT )
@@ -138,6 +139,19 @@ int main( int argc, char** argv ) {
             else if( e.type == SDL_KEYDOWN ) {
                 if( e.key.keysym.sym == SDLK_p )
                     state = (state == pause ? play : pause);
+                else if( e.key.keysym.sym == SDLK_UP ) {
+                    /* Speed up simulation: */
+                    if( delay > 200 ) 
+                        delay -= 100;
+                    fprintf(stdout, "UP ARROW PRESSED: Delay now %i\n", delay);
+                }
+                else if( e.key.keysym.sym == SDLK_DOWN ) {
+                    /* Slow down simulation: */
+                    delay += 100;
+                    fprintf(stdout, "DOWN ARROW PRESSED: Delay now %i\n", delay);
+                }
+                else if( e.key.keysym.sym == SDLK_q )
+                    quit = true;
             }
             else if( e.type == SDL_MOUSEBUTTONDOWN ) {
                 fprintf(stdout, "MOUSE EVENT: SQUARE( %i , %i ) CLICKED! %i -> ", (e.button.y-GRID_START_Y)/CELL_HEIGHT, (e.button.x-GRID_START_X)/CELL_WIDTH, cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH]);
