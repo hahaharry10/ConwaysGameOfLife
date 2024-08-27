@@ -1,19 +1,16 @@
 CC = clang
-C89 = -std=c89
-CFLAGS = -pedantic -g
-HEADERS = *.h
-MAINS = 	gameOfLife.o
-TARGETS	=	gameOfLife
-.PHONY: all clean
+CFLAGS = -std=c89 -pedantic -g
+INCLUDES = -I/usr/local/include/SDL2/
+LIBS = -lSDL2
+SRCS = gameOfLife.c GUI.c
+MAIN = gameOfLife
+OBJS = $(SRCS:.c=.o)
 
-all: ${TARGETS}
+$(MAIN): $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LIBS)
+
+.c.o:
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm ${TARGETS} ${MAINS} ${MODULES}
-
-gameOfLife: gameOfLife.o
-	$(CC) $(C89) $(CFLAGS) -o $@ $^
-
-gameOfLife.o: gameOfLife.c ${HEADERS}
-	$(CC) -c $(C89) $(CFLAGS) -o $@ $<
-
+	$(RM) *.o *~ $(MAIN)
