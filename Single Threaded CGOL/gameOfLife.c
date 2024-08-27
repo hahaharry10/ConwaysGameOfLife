@@ -125,6 +125,7 @@ int main( int argc, char** argv ) {
 
     quit = false;
     state = pause;
+    RENDER_CELLS(cellGrid, renderer, cells);
     while( !quit ) {
         if( state == play ) {
             RENDER_CELLS(cellGrid, renderer, cells);
@@ -139,8 +140,9 @@ int main( int argc, char** argv ) {
                     state = (state == pause ? play : pause);
             }
             else if( e.type == SDL_MOUSEBUTTONDOWN ) {
-                fprintf(stdout, "MOUSE EVENT: SQUARE( %i , %i ) CLICKED!\n", (e.button.y-GRID_START_Y)/CELL_HEIGHT, (e.button.x-GRID_START_X)/CELL_WIDTH);
-                cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH] = !cellGrid[e.button.y/CELL_HEIGHT][e.button.x/CELL_WIDTH];
+                fprintf(stdout, "MOUSE EVENT: SQUARE( %i , %i ) CLICKED! %i -> ", (e.button.y-GRID_START_Y)/CELL_HEIGHT, (e.button.x-GRID_START_X)/CELL_WIDTH, cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH]);
+                cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH] = !cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH];
+                fprintf(stdout, "%i\n", cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH]);
                 RENDER_CELLS(cellGrid, renderer, cells);
             }
         }
