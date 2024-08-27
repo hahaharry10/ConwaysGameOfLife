@@ -313,6 +313,15 @@ int main( int argc, char** argv ) {
             MPI_Isend(domain+CELL_GRID_WIDTH, CELL_GRID_WIDTH, MPI_CHAR, rank-1, 0, MPI_COMM_WORLD, requests+3);
         }
 
+        /*
+         * TODO: Implement Graphics Here.
+         */
+
+        if( rank == 0 ) {
+            printf("\n\n");
+            printCellGrid(cellGrid);
+        }
+
         MPI_Waitall(numComms, requests, MPI_STATUSES_IGNORE);
 
 #if TESTING_MODE
@@ -352,11 +361,6 @@ int main( int argc, char** argv ) {
             MPI_Barrier(MPI_COMM_WORLD);
         }
 #endif
-
-        if( rank == 0 ) {
-            printf("\n\n");
-            printCellGrid(cellGrid);
-        }
 
         sleep(1);
     }
