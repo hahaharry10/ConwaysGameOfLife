@@ -123,17 +123,11 @@ int main( int argc, char** argv ) {
         return 1;
     }
 
-    createToad(cellGrid, 5, 5);
-    createBeacon(cellGrid, 10, 10);
-    createBlock(cellGrid, 10, 5);
-    createGlider(cellGrid, 0, 0);
-
     quit = false;
     state = pause;
     while( !quit ) {
         if( state == play ) {
             RENDER_CELLS(cellGrid, renderer, cells);
-            /*         printCellGrid(cellGrid); */
             runSimulation(cellGrid);
             SDL_Delay(1000);
         }
@@ -143,6 +137,11 @@ int main( int argc, char** argv ) {
             else if( e.type == SDL_KEYDOWN ) {
                 if( e.key.keysym.sym == SDLK_p )
                     state = (state == pause ? play : pause);
+            }
+            else if( e.type == SDL_MOUSEBUTTONDOWN ) {
+                fprintf(stdout, "MOUSE EVENT: SQUARE( %i , %i ) CLICKED!\n", (e.button.y-GRID_START_Y)/CELL_HEIGHT, (e.button.x-GRID_START_X)/CELL_WIDTH);
+                cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH] = !cellGrid[e.button.y/CELL_HEIGHT][e.button.x/CELL_WIDTH];
+                RENDER_CELLS(cellGrid, renderer, cells);
             }
         }
     }
