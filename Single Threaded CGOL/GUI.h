@@ -4,15 +4,15 @@
 #include <stdio.h>
 #include "SDL.h"
 
-#define SCREEN_WIDTH    1940
-#define SCREEN_HEIGHT   1080
-#define GRID_START_X 200
-#define GRID_START_Y 200
+#define SCREEN_WIDTH 1940
+#define SCREEN_HEIGHT 1080
+#define GRID_START_X 0
+#define GRID_START_Y 40
 
-#define CELL_GRID_WIDTH 20
-#define CELL_GRID_HEIGHT 20
-#define CELL_WIDTH 20
-#define CELL_HEIGHT 20
+#define CELL_GRID_WIDTH 194
+#define CELL_GRID_HEIGHT 108-4
+#define CELL_WIDTH 10
+#define CELL_HEIGHT 10
 
 typedef enum { false, true } bool;
 typedef enum { pause, play } GAME_STATE;

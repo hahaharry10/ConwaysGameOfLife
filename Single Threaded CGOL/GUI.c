@@ -1,6 +1,4 @@
 #include "GUI.h"
-#include "SDL_render.h"
-#include "SDL_video.h"
 
 int INIT_GRAPHICS(SDL_Window** window, SDL_Renderer** renderer, SDL_Rect** cells) {
     int i;
@@ -46,7 +44,6 @@ void RENDER_CELLS( char** cellGrid, SDL_Renderer* renderer, SDL_Rect* cells ) {
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     for( i = 0; i < CELL_GRID_WIDTH*CELL_GRID_HEIGHT; i++ ) {
-/*         fprintf(stdout, "Square %i:\t%i\t%i\t%i\t%i\n", i, cells[i].x, cells[i].y, cells[i].w, cells[i].h); */
         SDL_RenderDrawRect(renderer, cells+i);
         if( cellGrid[i/CELL_GRID_WIDTH][i%CELL_GRID_WIDTH] )
             SDL_RenderFillRect(renderer, cells+i);
