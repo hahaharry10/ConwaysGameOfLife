@@ -1,7 +1,9 @@
 #include "gameOfLife.h"
+#include "GUI.h"
+#include "SDL_events.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+
 
 void runSimulation(char** cellGrid) {
     int r, c; /* Using r and c as iterators to represent row and columns on the grid. */
@@ -109,19 +111,43 @@ void createGlider( char** cellGrid, int strt_r, int strt_c ) {
 
 int main( int argc, char** argv ) {
     char** cellGrid;
+    SDL_Window* window; SDL_Renderer* renderer;
+    SDL_Rect* cells;
+    SDL_Event e;
+    bool quit;
+    GAME_STATE state;
 
     cellGrid = initCellGrid();
+    if( INIT_GRAPHICS(&window, &renderer, &cells) ) {
+        free(cellGrid);
+        return 1;
+    }
+
     createToad(cellGrid, 5, 5);
     createBeacon(cellGrid, 10, 10);
     createBlock(cellGrid, 10, 5);
     createGlider(cellGrid, 0, 0);
 
-    while( 1 ) {
-        printCellGrid(cellGrid);
-        runSimulation(cellGrid);
-/*         break; */
-        sleep(2);
+    quit = false;
+    state = pause;
+    while( !quit ) {
+        if( state == play ) {
+            RENDER_CELLS(cellGrid, renderer, cells);
+            /*         printCellGrid(cellGrid); */
+            runSimulation(cellGrid);
+            SDL_Delay(1000);
+        }
+        while ( SDL_PollEvent(&e) ) {
+            if( e.type == SDL_QUIT )
+                quit = true;
+            else if( e.type == SDL_KEYDOWN ) {
+                if( e.key.keysym.sym == SDLK_p )
+                    state = (state == pause ? play : pause);
+            }
+        }
     }
 
+    QUIT_GRAPHICS(window, renderer, cells);
+    free(cellGrid);
     return 0;
 }
