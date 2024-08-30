@@ -34,7 +34,7 @@ void runSimulation(char** cellGrid) {
                     if( c != 0 )
                         /* Lower Left: */
                         ++neighbourGrid[r+1][c-1];
-                    if( c != CELL_GRID_HEIGHT-1 )
+                    if( c != CELL_GRID_WIDTH-1 )
                         /* Lower Right: */
                         ++neighbourGrid[r+1][c+1];
                 }
@@ -44,15 +44,6 @@ void runSimulation(char** cellGrid) {
                 if( c != CELL_GRID_WIDTH-1 )
                     /* Immediate Right: */
                     ++neighbourGrid[r][c+1];
-
-                printf("r=%i c=%i\n", r, c);
-                for( i = 21; i < 25; i++ ) {
-                    for( j = 100; j < 106; j++ )
-                        printf("%c ", (i==r && j==c ) ? '*' : (neighbourGrid[i][j]+'0'));
-                    printf("\n");
-                }
-                printf("\n");
-                printf("\n");
             }
         }
 
@@ -150,11 +141,11 @@ int main( int argc, char** argv ) {
     RENDER_CELLS(cellGrid, renderer, cells);
     while( !quit ) {
         if( state == play ) {
-            RENDER_CELLS(cellGrid, renderer, cells);
             runSimulation(cellGrid);
+            RENDER_CELLS(cellGrid, renderer, cells);
             SDL_Delay(delay);
         }
-        while ( SDL_PollEvent(&e) ) {
+        while( SDL_PollEvent(&e) ) {
             if( e.type == SDL_QUIT )
                 quit = true;
             else if( e.type == SDL_KEYDOWN ) {
