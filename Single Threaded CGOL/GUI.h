@@ -9,10 +9,10 @@
 #define GRID_START_X 0
 #define GRID_START_Y 40
 
-#define CELL_GRID_WIDTH 194
-#define CELL_GRID_HEIGHT 108-4
 #define CELL_WIDTH 10
 #define CELL_HEIGHT 10
+#define CELL_GRID_WIDTH ((SCREEN_WIDTH - GRID_START_X) / CELL_WIDTH)
+#define CELL_GRID_HEIGHT ((SCREEN_HEIGHT - GRID_START_Y) / CELL_HEIGHT)
 
 typedef enum { false, true } bool;
 typedef enum { pause, play } GAME_STATE;
