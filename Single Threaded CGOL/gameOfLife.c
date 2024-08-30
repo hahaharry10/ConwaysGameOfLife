@@ -72,7 +72,7 @@ char** initCellGrid(void) {
 void freeCellGrid(char** cellGrid) {
     int i;
 
-    for( i = 0; i < CELL_GRID_HEIGHT; i++ ) 
+    for( i = 0; i < CELL_GRID_HEIGHT; i++ )
         free(cellGrid[i]);
     free(cellGrid);
 }
@@ -122,12 +122,13 @@ void createGlider( char** cellGrid, int strt_r, int strt_c ) {
 
 int main( int argc, char** argv ) {
     char** cellGrid;
-    SDL_Window* window; SDL_Renderer* renderer;
+    SDL_Window* window;
+    SDL_Renderer* renderer;
     SDL_Rect* cells;
     SDL_Event e;
     bool quit;
     GAME_STATE state;
-    int delay;
+    int delay, i;
 
     cellGrid = initCellGrid();
     if( INIT_GRAPHICS(&window, &renderer, &cells) ) {
@@ -153,28 +154,25 @@ int main( int argc, char** argv ) {
                     state = (state == pause ? play : pause);
                 else if( e.key.keysym.sym == SDLK_UP ) {
                     /* Speed up simulation: */
-                    if( delay > 200 ) 
-                        delay -= 100;
+                    if( delay > 50 )
+                        delay -= 50;
                     fprintf(stdout, "UP ARROW PRESSED: Delay now %i\n", delay);
-                }
-                else if( e.key.keysym.sym == SDLK_DOWN ) {
+                } else if( e.key.keysym.sym == SDLK_DOWN ) {
                     /* Slow down simulation: */
-                    delay += 100;
+                    delay += 50;
                     fprintf(stdout, "DOWN ARROW PRESSED: Delay now %i\n", delay);
-                }
-                else if( e.key.keysym.sym == SDLK_q )
+                } else if( e.key.keysym.sym == SDLK_q )
                     quit = true;
-            }
-            else if( e.type == SDL_MOUSEBUTTONDOWN ) {
-                fprintf(stdout, "MOUSE EVENT: SQUARE( %i , %i ) CLICKED! %i -> ", (e.button.y-GRID_START_Y)/CELL_HEIGHT, (e.button.x-GRID_START_X)/CELL_WIDTH, cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH]);
-                cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH] = !cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH];
-                fprintf(stdout, "%i\n", cellGrid[(e.button.y-GRID_START_Y)/CELL_HEIGHT][(e.button.x-GRID_START_X)/CELL_WIDTH]);
+            } else if( e.type == SDL_MOUSEBUTTONDOWN ) {
+                fprintf(stdout, "MOUSE EVENT: SQUARE( %i , %i ) CLICKED! %i -> ", (e.button.y-GRID_START_Y) / CELL_HEIGHT, (e.button.x-GRID_START_X) / CELL_WIDTH, cellGrid[(e.button.y-GRID_START_Y) / CELL_HEIGHT] [(e.button.x-GRID_START_X) / CELL_WIDTH]);
+                cellGrid[(e.button.y-GRID_START_Y) / CELL_HEIGHT][(e.button.x-GRID_START_X) / CELL_WIDTH] = !cellGrid[(e.button.y-GRID_START_Y) / CELL_HEIGHT][(e.button.x-GRID_START_X) / CELL_WIDTH];
+                fprintf(stdout, "%i\n", cellGrid[(e.button.y-GRID_START_Y) / CELL_HEIGHT][(e.button.x-GRID_START_X) / CELL_WIDTH]);
                 RENDER_CELLS(cellGrid, renderer, cells);
             }
         }
     }
 
     QUIT_GRAPHICS(window, renderer, cells);
-    free(cellGrid);
+    freeCellGrid(cellGrid);
     return 0;
 }
