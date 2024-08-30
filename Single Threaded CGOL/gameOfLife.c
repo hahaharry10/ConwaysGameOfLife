@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 void runSimulation(char** cellGrid) {
     int r, c; /* Using r and c as iterators to represent row and columns on the grid. */
     char** neighbourGrid;
+    int i, j;
 
     /* Create grid that contains the number of neighbours of each cell: */
     neighbourGrid = (char **) calloc(CELL_GRID_HEIGHT, sizeof(char *));
@@ -17,21 +17,42 @@ void runSimulation(char** cellGrid) {
     }
 
     /* Get neighbour count for all cells: */
-    for( r = 0; r < CELL_GRID_WIDTH; r++ )
-        for( c = 0; c < CELL_GRID_HEIGHT; c++ ) {
+    for( r = 0; r < CELL_GRID_HEIGHT; r++ )
+        for( c = 0; c < CELL_GRID_WIDTH; c++ ) {
             if( cellGrid[r][c] ) {
                 if( r != 0 ) {
-                    ++neighbourGrid[r-1][c];                                     /* Immediate Above */
-                    if( c != 0 ) { ++neighbourGrid[r-1][c-1]; }                  /* Top Left */
-                    if( c != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[r-1][c+1]; }  /* Top Right */
+                    ++neighbourGrid[r-1][c]; /* Immediate Above */
+                    if( c != 0 )
+                        /* Top Left: */
+                        ++neighbourGrid[r-1][c-1];
+                    if( c != CELL_GRID_WIDTH-1 )
+                        /* Top Right: */
+                        ++neighbourGrid[r-1][c+1];
                 }
                 if( r != CELL_GRID_HEIGHT-1 ) {
-                    ++neighbourGrid[r+1][c];                                     /* Immediate Below */
-                    if( c != 0 ) { ++neighbourGrid[r+1][c-1]; }                  /* Lower Left */
-                    if( c != CELL_GRID_HEIGHT-1 ) { ++neighbourGrid[r+1][c+1]; } /* Lower Right */
+                    ++neighbourGrid[r+1][c]; /* Immediate Below */
+                    if( c != 0 )
+                        /* Lower Left: */
+                        ++neighbourGrid[r+1][c-1];
+                    if( c != CELL_GRID_HEIGHT-1 )
+                        /* Lower Right: */
+                        ++neighbourGrid[r+1][c+1];
                 }
-                if( c != 0 ) { ++neighbourGrid[r][c-1]; }                        /* Immediate Left */
-                if( c != CELL_GRID_WIDTH-1 ) { ++neighbourGrid[r][c+1]; }          /* Immediate Right */
+                if( c != 0 )
+                    /* Immediate Left: */
+                    ++neighbourGrid[r][c-1];
+                if( c != CELL_GRID_WIDTH-1 )
+                    /* Immediate Right: */
+                    ++neighbourGrid[r][c+1];
+
+                printf("r=%i c=%i\n", r, c);
+                for( i = 21; i < 25; i++ ) {
+                    for( j = 100; j < 106; j++ )
+                        printf("%c ", (i==r && j==c ) ? '*' : (neighbourGrid[i][j]+'0'));
+                    printf("\n");
+                }
+                printf("\n");
+                printf("\n");
             }
         }
 
