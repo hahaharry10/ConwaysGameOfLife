@@ -2,7 +2,7 @@
 #define _GUI_H
 
 #include <stdio.h>
-#include "SDL.h"
+#include "SDL2/SDL.h"
 
 #define SCREEN_WIDTH 1940
 #define SCREEN_HEIGHT 1080
